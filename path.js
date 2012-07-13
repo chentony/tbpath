@@ -13,7 +13,7 @@ window.Path = {
 		this.listened = true;
 	
 		this.supported = !!(window.history && window.history.pushState);
-		this.oldIE = document.documentMode && document.documentMode < 8;
+		this.oldIE = !document.documentMode || document.documentMode < 8;
 		
 		var self = this, fn, path
 		if (this.supported) {
@@ -23,16 +23,26 @@ window.Path = {
 
 			path = location.pathname+window.location.search;
 		} else {
-			fn = function () { Path.dispatch(location.hash) };
-
+			path = location.hash.replace('#', '');
+			
 			if (!this.oldIE) {
+				fn = function () { Path.dispatch(location.hash.replace('#', '')); };		
 				window.onhashchange = fn;
 			} else {
-				setInterval(fn, 1000); // to be solved
+				fn = function () { Path.dispatch(Path.iframe.location.hash.replace('#', '')); };
+				
+				this.iframe = document.createElement('<iframe src="javascript:0" tabindex="-1">');
+				this.iframe.style.display = 'none';
+				document.body.appendChild(this.iframe);
+				this.iframe = this.iframe.contentWindow;
+				this.iframe.document.open().close();
+				this.iframe.location.hash = path;
+				
+				setInterval(fn, 50); // to be solved
 			}	
 			
-			if (location.hash.replace('#') !== '') {
-				this.execute(location.hash);
+			if (path !== '') {
+				this.execute(path);
 			}
 
 		}
@@ -47,9 +57,11 @@ window.Path = {
 			window.history.pushState(null, null, path);
 			this.dispatch(path);
 		} else if (!this.oldIE) {
-			window.location.hash = '#' + path;
+			window.location.hash = path;
 		} else {
 			// old IE
+			this.iframe.document.open().close();
+			this.iframe.location.hash = path;
 		}
 	},
 	//------- private --------------
@@ -67,12 +79,15 @@ window.Path = {
 		}
 		this.routes.current = path;
 		
+		if (this.oldIE) {
+			location.hash = path;
+		}
+		
 		this.execute(path);
 
 	},
 	executeTimer: null,
 	execute: function (path) {
-		path = path.replace(/^#/, '');
 		
 		if (path === '') { // 
 			path = location.pathname + location.search;
