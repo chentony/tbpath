@@ -8,45 +8,48 @@ window.Path = {
 		}			
 		return this.routes.defined[path];
 	},
-	listen: function (trigger) {
+	listened: false,
+	listen: function () {
+		this.listened = true;
+	
 		this.supported = !!(window.history && window.history.pushState);
+		this.oldIE = document.documentMode && document.documentMode < 8;
 		
 		var self = this, fn, path
 		if (this.supported) {
-			fn = function () { Path.dispatch(location.pathname+window.location.search); };
+			fn = function () { Path.dispatch(location.pathname+location.search); };
 			
 			window.onpopstate = fn;
 
 			path = location.pathname+window.location.search;
 		} else {
-			fn = function () { Path.dispatch(location.hash); };
+			fn = function () { Path.dispatch(location.hash) };
 
-			if ('onhashchange' in window && (!document.documentMode || document.documentMode >= 8)) {
+			if (!this.oldIE) {
 				window.onhashchange = fn;
 			} else {
-				setInterval(fn, 1000);
+				setInterval(fn, 1000); // to be solved
 			}	
-
-			path = location.hash;
-
-			if (path.charAt(0) === '#') {
-				path = path.slice(1);
+			
+			if (location.hash.replace('#') !== '') {
+				this.execute(location.hash);
 			}
+
 		}
 		
 		this.routes.current = path;
-
-		if (trigger && path !== '') {
-			this.dispatch(path);
-		}
 		
 	},
-	navigate: function (path) {
+	nav: function (path) {
+		if (!this.listened) return;
+	
 		if (this.supported) {
 			window.history.pushState(null, null, path);
-			this.dispatch(window.location.pathname+window.location.search);
-		} else {
+			this.dispatch(path);
+		} else if (!this.oldIE) {
 			window.location.hash = '#' + path;
+		} else {
+			// old IE
 		}
 	},
 	//------- private --------------
@@ -58,26 +61,35 @@ window.Path = {
 		current: null,
 		defined: {}
 	},
-	dispatch: function (path) { document.getElementById('m').innerHTML += location.href +'<br>';
+	dispatch: function (path) { 
 		if (path === this.routes.current) {
 			return;
 		}
 		this.routes.current = path;
+		
+		this.execute(path);
 
-		if (path.charAt(0) === '#') {
-			path = path.slice(1);
-		}
-
+	},
+	executeTimer: null,
+	execute: function (path) {
+		path = path.replace(/^#/, '');
+		
+		if (path === '') { // 
+			path = location.pathname + location.search;
+		} 
+		
 		var route, isMatch;
-		for (var i in this.routes.defined) {
-			route = this.routes.defined[i];
-			isMatch = this.match(route.path, path);
+		for (var i in Path.routes.defined) {
+			route = Path.routes.defined[i];
+			isMatch = Path.match(route.path, path);
 			if (isMatch) {
 				route.action.apply(route, isMatch);
 				return;
+			} else {
+				 // 没有找到匹配的路由
 			}
 		}
-
+		
 	},
 	match: function (path, apath) {
 		var values = [apath];
