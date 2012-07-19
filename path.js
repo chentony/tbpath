@@ -13,7 +13,7 @@ window.Path = {
 		this.listened = true;
 	
 		this.supported = !!(window.history && window.history.pushState);
-		this.oldIE = !document.documentMode || document.documentMode < 8;
+		this.oldIE = (navigator.userAgent.toLowerCase().search('msie') > 0) && (!document.documentMode || document.documentMode < 8);
 		
 		var self = this, fn, path
 		if (this.supported) {
@@ -100,9 +100,7 @@ window.Path = {
 			if (isMatch) {
 				route.action.apply(route, isMatch);
 				return;
-			} else {
-				 // 没有找到匹配的路由
-			}
+			} else {}
 		}
 		
 	},
@@ -136,5 +134,3 @@ Path.Route.prototype = {
 		this.action = fn;
 	}
 };
-
-})();
